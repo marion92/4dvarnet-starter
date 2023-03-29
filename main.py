@@ -4,6 +4,7 @@ import hydra
 def main(cfg):
     hydra.utils.call(cfg.entrypoints)
     print('test')
+    print('test2')
 
 if __name__ == '__main__':
     main()
