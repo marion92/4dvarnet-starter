@@ -19,7 +19,7 @@ class XrDataset(torch.utils.data.Dataset):
     """
     torch Dataset based on an xarray.DataArray with on the fly slicing.
 
-    ### Usage: #### 
+    ### Usage: #### 
     If you want to be able to reconstruct the input
 
     the input xr.DataArray should:
@@ -42,6 +42,7 @@ class XrDataset(torch.utils.data.Dataset):
         strides: dict of dims to stride size (default to one)
         check_full_scan: Boolean: if True raise an error if the whole domain is not scanned by the patch size stride combination
         """
+        print('init (xrdataset)')
         super().__init__()
         self.return_coords = False
         self.postpro_fn = postpro_fn
@@ -79,16 +80,19 @@ class XrDataset(torch.utils.data.Dataset):
                         """
                 )
     def __len__(self):
+        print('len(xrdataset)')
         size = 1
         for v in self.ds_size.values():
             size *= v
         return size
 
     def __iter__(self):
+        print('iter (xrdataset)')
         for i in range(len(self)):
             yield self[i]
 
     def get_coords(self):
+        print('get_coords (xrdataset)')
         self.return_coords = True
         coords = []
         try:
@@ -99,6 +103,7 @@ class XrDataset(torch.utils.data.Dataset):
             return coords
 
     def __getitem__(self, item):
+        print('getitem (xrdataset)')
         sl = {
                 dim: slice(self.strides.get(dim, 1) * idx,
                            self.strides.get(dim, 1) * idx + self.patch_dims[dim])
@@ -116,6 +121,7 @@ class XrDataset(torch.utils.data.Dataset):
         return item
 
     def reconstruct(self, batches, weight=None):
+        print('reconstruct (xrdataset)')
         """
         takes as input a list of np.ndarray of dimensions (b, *, *patch_dims)
         return a stitched xarray.DataArray with the coords of patch_dims
@@ -129,6 +135,7 @@ class XrDataset(torch.utils.data.Dataset):
         return self.reconstruct_from_items(items, weight)
 
     def reconstruct_from_items(self, items, weight=None):
+        print('reconstruct_from_items (xrdataset)')
         if weight is None:
             weight = np.ones(list(self.patch_dims.values()))
         w = xr.DataArray(weight, dims=list(self.patch_dims.keys()))
@@ -162,6 +169,7 @@ class XrConcatDataset(torch.utils.data.ConcatDataset):
     Concatenation of XrDatasets
     """
     def reconstruct(self, batches, weight=None):
+        print('reconstruct(xrconcatdataset)')
         """
         Returns list of xarray object, reconstructed from batches
         """
@@ -175,6 +183,7 @@ class XrConcatDataset(torch.utils.data.ConcatDataset):
 
 class AugmentedDataset(torch.utils.data.Dataset):
     def __init__(self, inp_ds, aug_factor, aug_only=False, item_cls=TrainingItem):
+        print('init (augmenteddataset)')
         self.aug_factor = aug_factor
         self.aug_only = aug_only
         self.inp_ds = inp_ds
@@ -182,9 +191,11 @@ class AugmentedDataset(torch.utils.data.Dataset):
         self.item_cls = item_cls
 
     def __len__(self):
+        print('len (augmenteddataset)')
         return len(self.inp_ds) * (1 + self.aug_factor - int(self.aug_only))
 
     def __getitem__(self, idx):
+        print('getitem (augmenteddataset)')
         if self.aug_only:
             idx = idx + len(self.inp_ds)
 
@@ -211,6 +222,7 @@ class AugmentedDataset(torch.utils.data.Dataset):
 
 class BaseDataModule(pl.LightningDataModule):
     def __init__(self, input_da, domains, xrds_kw, dl_kw, aug_only=False, aug_factor=2, norm_stats=None):
+        print('init (basedatamodule)')
         super().__init__()
         self.input_da = input_da
         self.domains = domains
@@ -225,16 +237,19 @@ class BaseDataModule(pl.LightningDataModule):
         self.test_ds = None
 
     def norm_stats(self):
+        print('norm_stats (basedatamodule)')
         if self._norm_stats is None:
             self._norm_stats = self.train_mean_std()
             print("Norm stats", self._norm_stats)
         return self._norm_stats
 
     def train_mean_std(self):
+        print('train_mean_std (basedatamodule)')
         train_data = self.input_da.sel(self.xrds_kw.get('domain_limits', {})).sel(self.domains['train'])
         return train_data.sel(variable='tgt').pipe(lambda da: (da.mean().values.item(), da.std().values.item()))
 
     def setup(self, stage='test'):
+        print('setup (basedatamodule)')
         train_data = self.input_da.sel(self.domains['train'])
         post_fn = ft.partial(ft.reduce,lambda i, f: f(i), [
             lambda item: (item - self.norm_stats()[0]) / self.norm_stats()[1],
@@ -255,16 +270,20 @@ class BaseDataModule(pl.LightningDataModule):
 
 
     def train_dataloader(self):
+        print('train_dataloader (basedatamodule)')
         return torch.utils.data.DataLoader(self.train_ds, shuffle=True, **self.dl_kw)
 
     def val_dataloader(self):
+        print('val_dataloader (basedatamodule)')
         return torch.utils.data.DataLoader(self.val_ds, shuffle=False, **self.dl_kw)
 
     def test_dataloader(self):
+        print('test_dataloader (basedatamodule)')
         return torch.utils.data.DataLoader(self.test_ds, shuffle=False, **self.dl_kw)
 
 class ConcatDataModule(BaseDataModule):
     def train_mean_std(self):
+        print('train_mean_std (concatdatamodule)')
         sum, count = 0, 0
         train_data = self.input_da.sel(self.xrds_kw.get('domain_limits', {}))
         for domain in self.domains['train']:
@@ -281,6 +300,7 @@ class ConcatDataModule(BaseDataModule):
         return mean.values.item(), std.values.item()
 
     def setup(self, stage='test'):
+        print('setup (concatdatamodule)')
         post_fn = ft.partial(ft.reduce,lambda i, f: f(i), [
             lambda item: (item - self.norm_stats()[0]) / self.norm_stats()[1],
             TrainingItem._make,
@@ -304,10 +324,12 @@ class ConcatDataModule(BaseDataModule):
 
 class RandValDataModule(BaseDataModule):
     def __init__(self, val_prop, *args, **kwargs):
+        print('init (randvaldatamodule)')
         super().__init__(*args, **kwargs)
         self.val_prop = val_prop
 
     def setup(self, stage='test'):
+        print('setup (randvaldatamodule)')
         post_fn = ft.partial(ft.reduce,lambda i, f: f(i), [
             lambda item: (item - self.norm_stats()[0]) / self.norm_stats()[1],
             TrainingItem._make,
