@@ -110,6 +110,21 @@ def load_altimetry_data(path):
         .to_array()
     )
 
+def load_kd490_data (path1,patch2):
+    GT=xr.open_dataset(patch1)
+    patch=xr.open_dataset(patch2)
+    GT = GT.rename({'kd490': 'GT'})
+    merg=xr.merge([GT,patch])
+    return (
+        merg
+        .load()
+        .assign(
+            input=lambda ds: ds.kd490,
+            tgt=lambda ds: ds.GT,
+        )[[*src.data.TrainingItem._fields]]
+        .transpose("time", "lat", "lon")
+        .to_array()
+    )
 
 def rmse_based_scores(da_rec, da_ref):
     rmse_t = (
