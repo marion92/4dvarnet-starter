@@ -27,7 +27,7 @@ trainer:
 datamodule:
   _target_: src.data.BaseDataModule
   input_da: 
-    _target_: src.utils.load.kd490_data
+    _target_: src.utils.load_kd490_data
     path1: ${paths.GT}
     path2: ${paths.patch}
   domains:

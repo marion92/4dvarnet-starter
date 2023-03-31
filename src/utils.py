@@ -110,9 +110,9 @@ def load_altimetry_data(path):
         .to_array()
     )
 
-def load_kd490_data (path1,patch2):
-    GT=xr.open_dataset(patch1)
-    patch=xr.open_dataset(patch2)
+def load_kd490_data (path1,path2):
+    GT=xr.open_dataset(path1)
+    patch=xr.open_dataset(path2)
     GT = GT.rename({'kd490': 'GT'})
     merg=xr.merge([GT,patch])
     return (
