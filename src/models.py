@@ -48,7 +48,12 @@ class Lit4dVarNet(pl.LightningModule):
         
         grad_batch=kornia.filters.sobel(batch.tgt)
         grad_out=kornia.filters.sobel(out)
-
+        print('grad_batch')
+        print(grad_batch)
+        print('grad_out')
+        print(grad_out)
+        print(np.shape(batch.tgt[mask_no_obs]))
+        print(np.shape(grad_batch))
         erreur=[]
         for t in range (len(batch.tgt)):
             mask_batch=np.zeros((len(batch.tgt[0,0,:]),len(batch.tgt[0,:,0])))
