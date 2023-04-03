@@ -21,8 +21,8 @@ class Lit4dVarNet(pl.LightningModule):
         self.opt_fn = opt_fn
 
     @staticmethod
-    def weighted_mse(err, weight,mask_no_obs):
-        err_w = err * weight[None, ...][mask_no_obs]
+    def weighted_mse(err, weight):
+        err_w = err * weight[None, ...]
         non_zeros = (torch.ones_like(err) * weight[None, ...]) == 0.0
         err_num = err.isfinite() & ~non_zeros
         if err_num.sum() == 0:
@@ -43,7 +43,9 @@ class Lit4dVarNet(pl.LightningModule):
     def step(self, batch, phase="", opt_idx=None):
         mask_no_obs=torch.logical_not(torch.logical_and(torch.logical_not(torch.isnan(batch.tgt)),torch.isnan(batch.input)))
         out = self(X=batch)
-        loss = self.weighted_mse(out[mask_no_obs]- batch.tgt[mask_no_obs], self.rec_weight,mask_no_obs)
+        weight=self.rec_weight
+        weight_rep = torch.stack([weight]*base.datamodule.dl_kw.batch_size,dim=0)
+        loss = self.weighted_mse(out[mask_no_obs]- batch.tgt[mask_no_obs], weight_rep)
         
         grad_batch=kornia.filters.sobel(batch.tgt)
         grad_out=kornia.filters.sobel(out)
@@ -55,9 +57,7 @@ class Lit4dVarNet(pl.LightningModule):
         print(np.shape(grad_batch))
         erreur=[]
         for t in range (len(batch.tgt)):
-            mask_batch=np.zeros((len(batch.tgt[0,0,:]),len(batch.tgt[0,:,0])))
-
-            mask_batch=np.where(grad_batch==np.nan,False, True)
+            mask_batch=torch.isnan(grad_batch)
             erreur.append(grad_batch[t][mask_batch] - grad_out[t][mask_batch])
 
         grad_loss = self.weighted_mse( erreur , self.rec_weight)
