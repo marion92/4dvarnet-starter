@@ -11,6 +11,7 @@ import einops
 class Lit4dVarNet(pl.LightningModule):
     def __init__(self, solver, rec_weight, opt_fn, norm_stats=None):
         super().__init__()
+        print('init(models)')
         self.solver = solver
         self.rec_weight = torch.nn.Parameter(
             torch.from_numpy(rec_weight), requires_grad=False
@@ -42,9 +43,8 @@ class Lit4dVarNet(pl.LightningModule):
     def step(self, batch, phase="", opt_idx=None):
         mask_no_obs=(1-np.isnan(batch.tgt))*(np.isnan(input))
         mask_no_obs=np.where(mask_no_obs==1,True, False)
-        out = self(batch=batch)
-        
-        loss = self.weighted_mse(out[mask_no_obs] - batch.tgt[mask_no_obs], self.rec_weight)
+        out = self(X=batch)
+        loss = self.weighted_mse(out[mask_no_obs]- batch.tgt[mask_no_obs], self.rec_weight)
         
         grad_batch=kornia.filters.sobel(batch.tgt)
         grad_out=kornia.filters.sobel(out)
