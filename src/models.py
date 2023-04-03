@@ -21,8 +21,8 @@ class Lit4dVarNet(pl.LightningModule):
         self.opt_fn = opt_fn
 
     @staticmethod
-    def weighted_mse(err, weight):
-        err_w = err * weight[None, ...]
+    def weighted_mse(err, weight,mask_no_obs):
+        err_w = err * weight[None, ...][mask_no_obs]
         non_zeros = (torch.ones_like(err) * weight[None, ...]) == 0.0
         err_num = err.isfinite() & ~non_zeros
         if err_num.sum() == 0:
@@ -41,10 +41,9 @@ class Lit4dVarNet(pl.LightningModule):
         return self.solver(X)
 
     def step(self, batch, phase="", opt_idx=None):
-        mask_no_obs=(1-np.isnan(batch.tgt))*(np.isnan(input))
-        mask_no_obs=np.where(mask_no_obs==1,True, False)
+        mask_no_obs=torch.logical_not(torch.logical_and(torch.logical_not(torch.isnan(batch.tgt)),torch.isnan(batch.input)))
         out = self(X=batch)
-        loss = self.weighted_mse(out[mask_no_obs]- batch.tgt[mask_no_obs], self.rec_weight)
+        loss = self.weighted_mse(out[mask_no_obs]- batch.tgt[mask_no_obs], self.rec_weight,mask_no_obs)
         
         grad_batch=kornia.filters.sobel(batch.tgt)
         grad_out=kornia.filters.sobel(out)
