@@ -40,16 +40,18 @@ class Lit4dVarNet(pl.LightningModule):
         return self.solver(X)
 
     def step(self, batch, phase="", opt_idx=None):
-        mask_no_obs=(1-np.isnan(tgt))*(np.isnan(inputs))
+        mask_no_obs=(1-np.isnan(batch.tgt))*(np.isnan(input))
         mask_no_obs=np.where(mask_no_obs==1,True, False)
         out = self(batch=batch)
+        
         loss = self.weighted_mse(out[mask_no_obs] - batch.tgt[mask_no_obs], self.rec_weight)
+        
         grad_batch=kornia.filters.sobel(batch.tgt)
         grad_out=kornia.filters.sobel(out)
 
         erreur=[]
         for t in range (len(batch.tgt)):
-            mask_batch=np.zeros((len(tgt[0,0,:]),len(tgt[0,:,0])))
+            mask_batch=np.zeros((len(batch.tgt[0,0,:]),len(batch.tgt[0,:,0])))
 
             mask_batch=np.where(grad_batch==np.nan,False, True)
             erreur.append(grad_batch[t][mask_batch] - grad_out[t][mask_batch])
