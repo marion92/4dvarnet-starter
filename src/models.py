@@ -22,8 +22,8 @@ class Lit4dVarNet(pl.LightningModule):
 
     @staticmethod
     def weighted_mse(err, weight):
-        err_w = err * weight[None, ...]
-        non_zeros = (torch.ones_like(err) * weight[None, ...]) == 0.0
+        err_w = err * weight
+        non_zeros = (torch.ones_like(err) * weight) == 0.0
         err_num = err.isfinite() & ~non_zeros
         if err_num.sum() == 0:
             return torch.scalar_tensor(1000.0, device=err_num.device).requires_grad_()
@@ -44,23 +44,21 @@ class Lit4dVarNet(pl.LightningModule):
         mask_no_obs=torch.logical_not(torch.logical_and(torch.logical_not(torch.isnan(batch.tgt)),torch.isnan(batch.input)))
         out = self(X=batch)
         weight=self.rec_weight
-        weight_rep = torch.stack([weight]*base.datamodule.dl_kw.batch_size,dim=0)
-        loss = self.weighted_mse(out[mask_no_obs]- batch.tgt[mask_no_obs], weight_rep)
+        weight_rep = torch.stack([weight]*4,dim=0)
+        loss = self.weighted_mse(out[mask_no_obs]- batch.tgt[mask_no_obs], weight_rep[mask_no_obs])
         
         grad_batch=kornia.filters.sobel(batch.tgt)
         grad_out=kornia.filters.sobel(out)
-        print('grad_batch')
-        print(grad_batch)
-        print('grad_out')
-        print(grad_out)
-        print(np.shape(batch.tgt[mask_no_obs]))
-        print(np.shape(grad_batch))
-        erreur=[]
-        for t in range (len(batch.tgt)):
-            mask_batch=torch.isnan(grad_batch)
-            erreur.append(grad_batch[t][mask_batch] - grad_out[t][mask_batch])
 
-        grad_loss = self.weighted_mse( erreur , self.rec_weight)
+        #erreur=[]
+        #for t in range (len(batch.tgt)):
+        #    mask_batch=torch.isnan(grad_batch)
+        #    erreur.append(grad_batch[t][mask_batch] - grad_out[t][mask_batch])
+        #grad_loss = self.weighted_mse( erreur , self.rec_weight)
+        
+        
+        grad_loss = self.weighted_mse(grad_batch[mask_batch] - grad_out[mask_batch]) , self.rec_weight)
+
         prior_cost = self.solver.prior_cost(out)
         with torch.no_grad():
             rmse = (
