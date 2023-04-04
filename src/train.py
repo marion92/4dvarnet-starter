@@ -5,11 +5,12 @@ def base_training(trainer, dm, lit_mod, test_dm=None, test_fn=None):
         print()
 
     lit_mod.norm_stats = dm.norm_stats()
-    trainer.fit(lit_mod, datamodule=dm)
+    #trainer.fit(lit_mod, datamodule=dm) 
 
     if test_fn is not None:
         if test_dm is None:
             test_dm = dm
+            
         lit_mod.norm_stats = test_dm.norm_stats()
 
         best_ckpt_path = trainer.checkpoint_callback.best_model_path

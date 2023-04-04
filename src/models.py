@@ -45,19 +45,14 @@ class Lit4dVarNet(pl.LightningModule):
         mask_no_obs=torch.logical_not(torch.logical_and(torch.logical_not(torch.isnan(batch.tgt)),torch.isnan(batch.input)))
         out = self(X=batch)
         weight=self.rec_weight
-        weight_rep = torch.stack([weight]*dl_kw.batch_size,dim=0)
+        weight_rep = torch.stack([weight]*mask_no_obs.size(0),dim=0)
         loss = self.weighted_mse(out[mask_no_obs]- batch.tgt[mask_no_obs], weight_rep[mask_no_obs])
         
         grad_batch=kornia.filters.sobel(batch.tgt)
         grad_out=kornia.filters.sobel(out)
         mask_batch=torch.isnan(grad_batch)
         
-        #for t in range (len(batch.tgt)):
-        #    mask_batch=torch.isnan(grad_batch)
-        #    grad_loss = self.weighted_mse( grad_batch[t:t+4][mask_batch] - grad_out[t:t+4][mask_batch], self.rec_weight[mask_batch])
-        
-        
-        grad_loss = self.weighted_mse(grad_batch[mask_batch] - grad_out[mask_batch]) , self.rec_weight[mask_batch])
+        grad_loss = self.weighted_mse(grad_batch[mask_batch] - grad_out[mask_batch] , weight_rep[mask_batch])
 
         prior_cost = self.solver.prior_cost(out)
         with torch.no_grad():
