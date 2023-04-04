@@ -9,7 +9,7 @@ import einops
 
 
 class Lit4dVarNet(pl.LightningModule):
-    def __init__(self, solver, rec_weight, opt_fn, norm_stats=None):
+    def __init__(self, solver, rec_weight, opt_fn, dl_kw, norm_stats=None):
         super().__init__()
         print('init(models)')
         self.solver = solver
@@ -19,6 +19,7 @@ class Lit4dVarNet(pl.LightningModule):
         self.test_data = None
         self.norm_stats = norm_stats if norm_stats is not None else (0.0, 1.0)
         self.opt_fn = opt_fn
+        self.dl_kw=dl_kw
 
     @staticmethod
     def weighted_mse(err, weight):
@@ -44,20 +45,19 @@ class Lit4dVarNet(pl.LightningModule):
         mask_no_obs=torch.logical_not(torch.logical_and(torch.logical_not(torch.isnan(batch.tgt)),torch.isnan(batch.input)))
         out = self(X=batch)
         weight=self.rec_weight
-        weight_rep = torch.stack([weight]*4,dim=0)
+        weight_rep = torch.stack([weight]*dl_kw.batch_size,dim=0)
         loss = self.weighted_mse(out[mask_no_obs]- batch.tgt[mask_no_obs], weight_rep[mask_no_obs])
         
         grad_batch=kornia.filters.sobel(batch.tgt)
         grad_out=kornia.filters.sobel(out)
-
-        #erreur=[]
+        mask_batch=torch.isnan(grad_batch)
+        
         #for t in range (len(batch.tgt)):
         #    mask_batch=torch.isnan(grad_batch)
-        #    erreur.append(grad_batch[t][mask_batch] - grad_out[t][mask_batch])
-        #grad_loss = self.weighted_mse( erreur , self.rec_weight)
+        #    grad_loss = self.weighted_mse( grad_batch[t:t+4][mask_batch] - grad_out[t:t+4][mask_batch], self.rec_weight[mask_batch])
         
         
-        grad_loss = self.weighted_mse(grad_batch[mask_batch] - grad_out[mask_batch]) , self.rec_weight)
+        grad_loss = self.weighted_mse(grad_batch[mask_batch] - grad_out[mask_batch]) , self.rec_weight[mask_batch])
 
         prior_cost = self.solver.prior_cost(out)
         with torch.no_grad():
