@@ -9,7 +9,7 @@ import einops
 
 
 class Lit4dVarNet(pl.LightningModule):
-    def __init__(self, solver, rec_weight, opt_fn, dl_kw, norm_stats=None):
+    def __init__(self, solver, rec_weight, opt_fn, norm_stats=None):
         super().__init__()
         print('init(models)')
         self.solver = solver
@@ -19,7 +19,6 @@ class Lit4dVarNet(pl.LightningModule):
         self.test_data = None
         self.norm_stats = norm_stats if norm_stats is not None else (0.0, 1.0)
         self.opt_fn = opt_fn
-        self.dl_kw=dl_kw
 
     @staticmethod
     def weighted_mse(err, weight):
