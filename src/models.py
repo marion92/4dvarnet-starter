@@ -37,12 +37,12 @@ class Lit4dVarNet(pl.LightningModule):
     def validation_step(self, batch, batch_idx):
         return self.step(batch, "val")[0]
 
-    def forward(self, X):
-        return self.solver(X)
+    def forward(self, batch):
+        return self.solver(batch)
 
     def step(self, batch, phase="", opt_idx=None):
         mask_no_obs=torch.logical_not(torch.logical_and(torch.logical_not(torch.isnan(batch.tgt)),torch.isnan(batch.input)))
-        out = self(X=batch)
+        out = self(batch=batch)
         weight=self.rec_weight
         weight_rep = torch.stack([weight]*mask_no_obs.size(0),dim=0)
         loss = self.weighted_mse(out[mask_no_obs]- batch.tgt[mask_no_obs], weight_rep[mask_no_obs])
@@ -89,6 +89,7 @@ class Lit4dVarNet(pl.LightningModule):
         rec_da = self.trainer.test_dataloaders[0].dataset.reconstruct(
             rec_data, self.rec_weight.cpu().numpy()
         )
+        
         if isinstance(rec_da, list):
             rec_da = rec_da[0]
 
@@ -100,7 +101,7 @@ class Lit4dVarNet(pl.LightningModule):
         self.test_data = xr.Dataset(
             {
                 k: rec_da.isel(v0=i, time=tidx, lat=latidx, lon=lonidx)
-                for i, k in enumerate(["ssh", "rec_ssh"])
+                for i, k in enumerate(["GT", "rec_GT"])
             }
         )
 
