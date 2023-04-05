@@ -176,7 +176,6 @@ def psd_based_scores(da_rec, da_ref):
     )
     x05, y05 = cs.collections[0].get_paths()[0].vertices.T
     plt.close()
-
     shortest_spatial_wavelength_resolved = np.min(x05)
     shortest_temporal_wavelength_resolved = np.min(y05)
     psd_da = 1.0 - mean_psd_err / mean_psd_signal
@@ -191,6 +190,7 @@ def psd_based_scores(da_rec, da_ref):
 def diagnostics(lit_mod, test_domain):
     print('diagnostics utils)')
     test_data = lit_mod.test_data.sel(test_domain)
+    test_data.to_netcdf('./outputs/test_data.nc')
     return diagnostics_from_ds(test_data, test_domain)
 
 
@@ -201,12 +201,12 @@ def diagnostics_from_ds(test_data, test_domain):
         .mean()
         .pipe(np.sqrt)
         .item(),
-        **dict(
-            zip(
-                ["λx", "λt"],
-                test_data.pipe(lambda ds: psd_based_scores(ds.rec_GT, ds.GT)[1:]),
-            )
-        ),
+        #**dict(
+        #    zip(
+        #        ["λx", "λt"],
+        #        test_data.pipe(lambda ds: psd_based_scores(ds.rec_GT, ds.GT)[1:]),
+        #    )
+        #),
         **dict(
             zip(
                 ["μ", "σ"],
