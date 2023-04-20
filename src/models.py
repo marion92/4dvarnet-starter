@@ -44,7 +44,7 @@ class Lit4dVarNet(pl.LightningModule):
         mask_obs=torch.logical_not(torch.isnan(batch.tgt))
         out = self(batch=batch)
         weight=self.rec_weight
-        weight_rep = torch.stack([weight]*mask_no_obs.size(0),dim=0)
+        weight_rep = torch.stack([weight]*mask_obs.size(0),dim=0)
         loss = self.weighted_mse(out[mask_obs]- batch.tgt[mask_obs], weight_rep[mask_obs])
         
         grad_batch=kornia.filters.sobel(batch.tgt)
