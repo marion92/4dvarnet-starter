@@ -9,6 +9,7 @@ import torch.nn.functional as F
 
 class Lit4dVarNet(pl.LightningModule):
     def __init__(self, solver, rec_weight, opt_fn, test_metrics=None, pre_metric_fn=None, norm_stats=None, persist_rw=True):
+        print('init (Lit4dVarNet/models)')
         super().__init__()
         self.solver = solver
         self.register_buffer('rec_weight', torch.from_numpy(rec_weight), persistent=persist_rw)
@@ -20,6 +21,7 @@ class Lit4dVarNet(pl.LightningModule):
 
     @property
     def norm_stats(self):
+        print('norm_stats (Lit4dVarNet/models)')
         if self._norm_stats is not None:
             return self._norm_stats
         if self.trainer.datamodule is not None:
@@ -28,6 +30,7 @@ class Lit4dVarNet(pl.LightningModule):
 
     @staticmethod
     def weighted_mse(err, weight):
+        print('weighted_mse (Lit4dVarNet/models)')
         err_w = err * weight[None, ...]
         non_zeros = (torch.ones_like(err) * weight[None, ...]) == 0.0
         err_num = err.isfinite() & ~non_zeros
@@ -37,15 +40,19 @@ class Lit4dVarNet(pl.LightningModule):
         return loss
 
     def training_step(self, batch, batch_idx):
+        print('training_step (Lit4dVarNet/models)')
         return self.step(batch, "train")[0]
 
     def validation_step(self, batch, batch_idx):
+        print('validation_step (Lit4dVarNet/models)')
         return self.step(batch, "val")[0]
 
     def forward(self, batch):
+        print('forward (Lit4dVarNet/models)')
         return self.solver(batch)
     
     def step(self, batch, phase=""):
+        print('step(Lit4dVarNet/models)')
         if self.training and batch.tgt.isfinite().float().mean() < 0.9:
             return None, None
 
@@ -58,6 +65,7 @@ class Lit4dVarNet(pl.LightningModule):
         return training_loss, out
 
     def base_step(self, batch, phase=""):
+        print('base_step (Lit4dVarNet/models)')
         out = self(batch=batch)
         loss = self.weighted_mse(out - batch.tgt, self.rec_weight)
 
@@ -68,9 +76,11 @@ class Lit4dVarNet(pl.LightningModule):
         return loss, out
 
     def configure_optimizers(self):
+        print('configure_optimizers (Lit4dVarNet/models)')
         return self.opt_fn(self)
 
     def test_step(self, batch, batch_idx):
+        print('test_step (Lit4dVarNet/models)')
         if batch_idx == 0:
             self.test_data = []
         out = self(batch=batch)
@@ -87,9 +97,11 @@ class Lit4dVarNet(pl.LightningModule):
 
     @property
     def test_quantities(self):
+        print('test_quantities (Lit4dVarNet/models)')
         return ['inp', 'tgt', 'out']
 
     def on_test_epoch_end(self):
+        print('on_test_epoch_end (Lit4dVarNet/models)')
         rec_da = self.trainer.test_dataloaders.dataset.reconstruct(
             self.test_data, self.rec_weight.cpu().numpy()
         )
@@ -116,6 +128,7 @@ class Lit4dVarNet(pl.LightningModule):
 
 class GradSolver(nn.Module):
     def __init__(self, prior_cost, obs_cost, grad_mod, n_step, lr_grad=0.1, **kwargs):
+        print('init (GradSolver/models)')
         super().__init__()
         self.prior_cost = prior_cost
         self.obs_cost = obs_cost
@@ -127,12 +140,14 @@ class GradSolver(nn.Module):
         self._grad_norm = None
 
     def init_state(self, batch, x_init=None):
+        print('init_state (GradSolver/models)')
         if x_init is not None:
             return x_init
 
         return batch.input.nan_to_num().detach().requires_grad_(True)
 
     def solver_step(self, state, batch, step):
+        print('solver_step (GradSolver/models)')
         var_cost = self.prior_cost(state) + self.obs_cost(state, batch)
         grad = torch.autograd.grad(var_cost, state, create_graph=True)[0]
         gmod = self.grad_mod(grad)
@@ -144,6 +159,7 @@ class GradSolver(nn.Module):
         return state - state_update
 
     def forward(self, batch):
+        print('forward (GradSolver/models)')
         with torch.set_grad_enabled(True):
             state = self.init_state(batch)
             self.grad_mod.reset_state(batch.input)
@@ -160,6 +176,7 @@ class GradSolver(nn.Module):
 
 class ConvLstmGradModel(nn.Module):
     def __init__(self, dim_in, dim_hidden, kernel_size=3, dropout=0.1, downsamp=None):
+        print('init (ConvLstmGradModel/models)')
         super().__init__()
         self.dim_hidden = dim_hidden
         self.gates = torch.nn.Conv2d(
@@ -183,6 +200,7 @@ class ConvLstmGradModel(nn.Module):
         )
 
     def reset_state(self, inp):
+        print('reset_state (ConvLstmGradModel/models)')
         size = [inp.shape[0], self.dim_hidden, *inp.shape[-2:]]
         self._grad_norm = None
         self._state = [
@@ -191,6 +209,7 @@ class ConvLstmGradModel(nn.Module):
         ]
 
     def forward(self, x):
+        print('forward (ConvLstmGradModel/models)')
         if self._grad_norm is None:
             self._grad_norm = (x**2).mean().sqrt()
         x =  x / self._grad_norm
@@ -217,16 +236,19 @@ class ConvLstmGradModel(nn.Module):
 
 class BaseObsCost(nn.Module):
     def __init__(self, w=1) -> None:
+        print('init (BaseObsCost/models)')
         super().__init__()
         self.w=w
 
     def forward(self, state, batch):
+        print('forward (BaseObsCost/models)')
         msk = batch.input.isfinite()
         return self.w * F.mse_loss(state[msk], batch.input.nan_to_num()[msk])
 
 
 class BilinAEPriorCost(nn.Module):
     def __init__(self, dim_in, dim_hidden, kernel_size=3, downsamp=None, bilin_quad=True):
+        print('init (BilinAEPriorCost/models)')
         super().__init__()
         self.bilin_quad = bilin_quad
         self.conv_in = nn.Conv2d(
@@ -261,6 +283,7 @@ class BilinAEPriorCost(nn.Module):
         )
 
     def forward_ae(self, x):
+        print('forward_ae (BilinAEPriorCost/models)')
         x = self.down(x)
         x = self.conv_in(x)
         x = self.conv_hidden(F.relu(x))
@@ -272,4 +295,5 @@ class BilinAEPriorCost(nn.Module):
         return x
 
     def forward(self, state):
+        print('forward (BilinAEPriorCost/models)')
         return F.mse_loss(state, self.forward_ae(state))

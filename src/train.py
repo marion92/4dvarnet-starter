@@ -2,6 +2,7 @@ import torch
 torch.set_float32_matmul_precision('high')
 
 def base_training(trainer, dm, lit_mod, ckpt=None):
+    print('base_training (train)')
     if trainer.logger is not None:
         print()
         print("Logdir:", trainer.logger.log_dir)
@@ -11,6 +12,7 @@ def base_training(trainer, dm, lit_mod, ckpt=None):
     trainer.test(lit_mod, datamodule=dm, ckpt_path='best')
 
 def multi_dm_training(trainer, dm, lit_mod, test_dm=None, test_fn=None, ckpt=None):
+    print('multi_dm_training (train)')
     if trainer.logger is not None:
         print()
         print("Logdir:", trainer.logger.log_dir)

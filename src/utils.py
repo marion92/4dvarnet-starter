@@ -17,17 +17,21 @@ import matplotlib.pyplot as plt
 
 
 def pipe(inp, fns):
+    print('pipe (utils)')
     for f in fns:
         inp = f(inp)
     return inp
 
 def kwgetattr(obj, name):
+    print('kwgetattr (utils)')
     return getattr(obj, name)
 
 def callmap(inp, fns):
+    print('Callmap (utils)')
     return [fn(inp) for fn in fns]
 
 def half_lr_adam(lit_mod, lr):
+    print('half_lr_adam (utils)')
     return torch.optim.Adam(
         [
             {"params": lit_mod.solver.grad_mod.parameters(), "lr": lr},
@@ -38,6 +42,7 @@ def half_lr_adam(lit_mod, lr):
 
 
 def cosanneal_lr_adam(lit_mod, lr, T_max=100, weight_decay=0.):
+    print('cosanneal_lr_adam (utils)')
     opt = torch.optim.Adam(
         [
             {"params": lit_mod.solver.grad_mod.parameters(), "lr": lr},
@@ -51,6 +56,7 @@ def cosanneal_lr_adam(lit_mod, lr, T_max=100, weight_decay=0.):
     }
 
 def cosanneal_lr_lion(lit_mod, lr, T_max=100):
+    print('cosanneal_lr_lion (utils)')
     import lion_pytorch
     opt = lion_pytorch.Lion(
         [
@@ -65,6 +71,7 @@ def cosanneal_lr_lion(lit_mod, lr, T_max=100):
 
 
 def triang_lr_adam(lit_mod, lr_min=5e-5, lr_max=3e-3, nsteps=200):
+    print('traing_lr_adam (utils)')
     opt = torch.optim.Adam(
         [
             {"params": lit_mod.solver.grad_mod.parameters(), "lr": lr_max},
@@ -87,6 +94,7 @@ def triang_lr_adam(lit_mod, lr_min=5e-5, lr_max=3e-3, nsteps=200):
 
 
 def remove_nan(da):
+    print('remove_nan (utils)')
     da["lon"] = da.lon.assign_attrs(units="degrees_east")
     da["lat"] = da.lat.assign_attrs(units="degrees_north")
 
@@ -97,6 +105,7 @@ def remove_nan(da):
 
 
 def get_constant_crop(patch_dims, crop, dim_order=["time", "lat", "lon"]):
+    print('get_constant_crop (utils)')
     patch_weight = np.zeros([patch_dims[d] for d in dim_order], dtype="float32")
     mask = tuple(
         slice(crop[d], -crop[d]) if crop.get(d, 0) > 0 else slice(None, None)
@@ -107,6 +116,7 @@ def get_constant_crop(patch_dims, crop, dim_order=["time", "lat", "lon"]):
 
 
 def get_cropped_hanning_mask(patch_dims, crop, **kwargs):
+    print('get_cropped_hanning_mask (utils)')
     pw = get_constant_crop(patch_dims, crop)
 
     t_msk = kornia.filters.get_hanning_kernel1d(patch_dims["time"])
@@ -116,6 +126,7 @@ def get_cropped_hanning_mask(patch_dims, crop, **kwargs):
 
 
 def get_triang_time_wei(patch_dims, offset=0, **crop_kw):
+    print('get_triang_time_wei (utils)')
     pw = get_constant_crop(patch_dims, **crop_kw)
     return np.fromfunction(
         lambda t, *a: (
@@ -125,6 +136,7 @@ def get_triang_time_wei(patch_dims, offset=0, **crop_kw):
     )
 
 def load_enatl(*args, obs_from_tgt=False, **kwargs):
+    print('load_enatl (utils)')
     ssh = xr.open_zarr('../sla-data-registry/enatl_preproc/truth_SLA_SSH_NATL60.zarr/').ssh
     nadirs = xr.open_zarr('../sla-data-registry/enatl_preproc/SLA_SSH_5nadirs.zarr/').ssh
     ssh = ssh.interp(
@@ -140,6 +152,7 @@ def load_enatl(*args, obs_from_tgt=False, **kwargs):
 
 
 def load_altimetry_data(path, obs_from_tgt=False):
+    print('load_altimetry_data (utils)')
     ds =  (
         xr.open_dataset(path)
         # .assign(ssh=lambda ds: ds.ssh.coarsen(lon=2, lat=2).mean().interp(lat=ds.lat, lon=ds.lon))
@@ -167,6 +180,7 @@ def load_full_natl_data(
         gt_var='ssh',
         **kwargs
     ):
+    print('load_full_natl_data (utils)')
     inp = xr.open_dataset(path_obs)[obs_var]
     gt = (
         xr.open_dataset(path_gt)[gt_var]
@@ -178,18 +192,21 @@ def load_full_natl_data(
 
 
 def rmse_based_scores_from_ds(ds, ref_variable='tgt', study_variable='out'):
+    print('rmse_based_scores_from_ds (utils)')
     try:
         return rmse_based_scores(ds[ref_variable], ds[study_variable])[2:]
     except:
         return [np.nan, np.nan]
 
 def psd_based_scores_from_ds(ds, ref_variable='tgt', study_variable='out'):
+    print('psd_based_scores_from_ds (utils)')
     try:
         return psd_based_scores(ds[ref_variable], ds[study_variable])[1:]
     except:
         return [np.nan, np.nan]
 
 def rmse_based_scores(da_rec, da_ref):
+    print('rmse_based_scores (utils)')
     rmse_t = (
         1.0
         - (((da_rec - da_ref) ** 2).mean(dim=("lon", "lat"))) ** 0.5
@@ -211,6 +228,7 @@ def rmse_based_scores(da_rec, da_ref):
 
 
 def psd_based_scores(da_rec, da_ref):
+    print('psd_based_scores (utils)')
     err = da_rec - da_ref
     err["time"] = (err.time - err.time[0]) / np.timedelta64(1, "D")
     signal = da_ref
@@ -250,11 +268,13 @@ def psd_based_scores(da_rec, da_ref):
 
 
 def diagnostics(lit_mod, test_domain):
+    print('diagnostics (utils)')
     test_data = lit_mod.test_data.sel(test_domain)
     return diagnostics_from_ds(test_data, test_domain)
 
 
 def diagnostics_from_ds(test_data, test_domain):
+    print('diagnostics_from_ds (utils)')
     test_data = test_data.sel(test_domain)
     metrics = {
         "RMSE (m)": test_data.pipe(lambda ds: (ds.rec_ssh - ds.ssh))
@@ -279,6 +299,7 @@ def diagnostics_from_ds(test_data, test_domain):
 
 
 def test_osse(trainer, lit_mod, osse_dm, osse_test_domain, ckpt, diag_data_dir=None):
+    print('test_osse (utils)')
     lit_mod.norm_stats = osse_dm.norm_stats()
     trainer.test(lit_mod, datamodule=osse_dm, ckpt_path=ckpt)
     osse_tdat = lit_mod.test_data[['rec_ssh', 'ssh']]
@@ -298,6 +319,7 @@ def test_osse(trainer, lit_mod, osse_dm, osse_test_domain, ckpt, diag_data_dir=N
 
 
 def ensemble_metrics(trainer, lit_mod, ckpt_list, dm, save_path):
+    print('ensemble_metrics (utils)')
     metrics = []
     test_data = xr.Dataset()
     for i, ckpt in enumerate(ckpt_list):
@@ -331,12 +353,14 @@ def ensemble_metrics(trainer, lit_mod, ckpt_list, dm, save_path):
 
 
 def add_geo_attrs(da):
+    print('add_geo_attrs (utils)')
     da["lon"] = da.lon.assign_attrs(units="degrees_east")
     da["lat"] = da.lat.assign_attrs(units="degrees_north")
     return da
 
 
 def vort(da):
+    print('vort (utils)')
     return mpcalc.vorticity(
         *mpcalc.geostrophic_wind(
             da.pipe(add_geo_attrs).assign_attrs(units="m").metpy.quantify()
@@ -345,10 +369,12 @@ def vort(da):
 
 
 def geo_energy(da):
+    print('geo_energy (utils)')
     return np.hypot(*mpcalc.geostrophic_wind(da.pipe(add_geo_attrs))).metpy.dequantify()
 
 
 def best_ckpt(xp_dir):
+    print('best_ckpt (utils)')
     _, xpn = load_cfg(xp_dir)
     print(Path(xp_dir) / xpn / 'checkpoints')
     ckpt_last = max(
@@ -360,6 +386,7 @@ def best_ckpt(xp_dir):
 
 
 def load_cfg(xp_dir):
+    print('load_cfg (utils)')
     hydra_cfg = OmegaConf.load(Path(xp_dir) / ".hydra/hydra.yaml").hydra
     cfg = OmegaConf.load(Path(xp_dir) / ".hydra/config.yaml")
     OmegaConf.register_new_resolver(

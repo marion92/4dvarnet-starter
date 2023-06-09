@@ -6,6 +6,7 @@ from git.repo import Repo as GitRepo
 from git import IndexFile
 
 def commit_cwd(branch, message, repo=None):
+    print('commit_cwd (versionning_cb)')
     repo = repo or GitRepo('.')
     index = IndexFile(repo)
     log_branch = getattr(repo.heads, branch, False) or repo.create_head(branch)
@@ -29,12 +30,14 @@ def commit_cwd(branch, message, repo=None):
 
 class VersioningCallback(Callback):
     def __init__(self, repo_path='.', branch='run_log'):
+        print('init (VersioningCallback/versioning_cb)')
         self.git_repo = GitRepo(repo_path)
         self.setup_hash = None
         self.date = str(date.today())
         self.branch = f'{branch}-{self.date}-{platform.node()}'
 
     def setup(self, trainer, pl_module, stage):
+        print('setup (VersioningCallback/versioning_cb)')
         msg = ''
         if trainer.logger is not None:
             msg = trainer.logger.log_dir

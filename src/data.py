@@ -35,6 +35,7 @@ class XrDataset(torch.utils.data.Dataset):
             check_full_scan=False, check_dim_order=False,
             postpro_fn=None
             ):
+        print('init (xrdataset/data)')
         """
         da: xarray.DataArray with patch dims at the end in the dim orders
         patch_dims: dict of da dimension to size of a patch 
@@ -79,16 +80,19 @@ class XrDataset(torch.utils.data.Dataset):
                         """
                 )
     def __len__(self):
+        print('len (xrdataset/data)')
         size = 1
         for v in self.ds_size.values():
             size *= v
         return size
 
     def __iter__(self):
+        print('iter (xrdataset/data)')
         for i in range(len(self)):
             yield self[i]
 
     def get_coords(self):
+        print('get_coords (xrdataset/data)')
         self.return_coords = True
         coords = []
         try:
@@ -99,6 +103,7 @@ class XrDataset(torch.utils.data.Dataset):
             return coords
 
     def __getitem__(self, item):
+        print('getitem (xrdataset/data)')
         sl = {
                 dim: slice(self.strides.get(dim, 1) * idx,
                            self.strides.get(dim, 1) * idx + self.patch_dims[dim])
@@ -116,6 +121,7 @@ class XrDataset(torch.utils.data.Dataset):
         return item
 
     def reconstruct(self, batches, weight=None):
+        print('reconstruct (xrdataset/data)')
         """
         takes as input a list of np.ndarray of dimensions (b, *, *patch_dims)
         return a stitched xarray.DataArray with the coords of patch_dims
@@ -129,6 +135,7 @@ class XrDataset(torch.utils.data.Dataset):
         return self.reconstruct_from_items(items, weight)
 
     def reconstruct_from_items(self, items, weight=None):
+        print('reconstruct_from_items (xrdataset/data)')
         if weight is None:
             weight = np.ones(list(self.patch_dims.values()))
         w = xr.DataArray(weight, dims=list(self.patch_dims.keys()))
@@ -162,6 +169,7 @@ class XrConcatDataset(torch.utils.data.ConcatDataset):
     Concatenation of XrDatasets
     """
     def reconstruct(self, batches, weight=None):
+        print('reconstruct (xrconcatdataset/data)')
         """
         Returns list of xarray object, reconstructed from batches
         """
@@ -175,6 +183,7 @@ class XrConcatDataset(torch.utils.data.ConcatDataset):
 
 class AugmentedDataset(torch.utils.data.Dataset):
     def __init__(self, inp_ds, aug_factor, aug_only=False, noise_sigma=None):
+        print('init (augmenteddataset/data)')
         self.aug_factor = aug_factor
         self.aug_only = aug_only
         self.inp_ds = inp_ds
@@ -182,9 +191,11 @@ class AugmentedDataset(torch.utils.data.Dataset):
         self.noise_sigma = noise_sigma
 
     def __len__(self):
+        print('len (augmenteddataset/data)')
         return len(self.inp_ds) * (1 + self.aug_factor - int(self.aug_only))
 
     def __getitem__(self, idx):
+        print('getitem(augmenteddataset/data)')
         if self.aug_only:
             idx = idx + len(self.inp_ds)
 
@@ -208,6 +219,7 @@ class AugmentedDataset(torch.utils.data.Dataset):
 
 class BaseDataModule(pl.LightningDataModule):
     def __init__(self, input_da, domains, xrds_kw, dl_kw, aug_kw=None, norm_stats=None, **kwargs):
+        print('init (basedatamodule/data)')
         super().__init__()
         self.input_da = input_da
         self.domains = domains
@@ -222,16 +234,19 @@ class BaseDataModule(pl.LightningDataModule):
         self._post_fn = None
 
     def norm_stats(self):
+        print('norm_stats (augmenteddataset/data)')
         if self._norm_stats is None:
             self._norm_stats = self.train_mean_std()
             # print("Norm stats", self._norm_stats)
         return self._norm_stats
 
     def train_mean_std(self, variable='tgt'):
+        print('train_mean_std (augmenteddataset/data)')
         train_data = self.input_da.sel(self.xrds_kw.get('domain_limits', {})).sel(self.domains['train'])
         return train_data.sel(variable=variable).pipe(lambda da: (da.mean().values.item(), da.std().values.item()))
 
     def post_fn(self):
+        print('post_fn (augmenteddataset/data)')
         normalize = lambda item: (item - self.norm_stats()[0]) / self.norm_stats()[1]
         return ft.partial(ft.reduce,lambda i, f: f(i), [
             TrainingItem._make,
@@ -241,6 +256,7 @@ class BaseDataModule(pl.LightningDataModule):
 
 
     def setup(self, stage='test'):
+        print('setup (augmenteddataset/data)')
         train_data = self.input_da.sel(self.domains['train'])
         post_fn = self.post_fn()
         self.train_ds = XrDataset(
@@ -258,16 +274,20 @@ class BaseDataModule(pl.LightningDataModule):
 
 
     def train_dataloader(self):
+        print('train_dataloader (augmenteddataset/data)')
         return  torch.utils.data.DataLoader(self.train_ds, shuffle=True, **self.dl_kw)
 
     def val_dataloader(self):
+        print('val_dataloader (augmenteddataset/data)')
         return torch.utils.data.DataLoader(self.val_ds, shuffle=False, **self.dl_kw)
 
     def test_dataloader(self):
+        print('test_dataloader (augmenteddataset/data)')
         return torch.utils.data.DataLoader(self.test_ds, shuffle=False, **self.dl_kw)
 
 class ConcatDataModule(BaseDataModule):
     def train_mean_std(self):
+        print('train_mean_std (concatDataModule/data)')
         sum, count = 0, 0
         train_data = self.input_da.sel(self.xrds_kw.get('domain_limits', {}))
         for domain in self.domains['train']:
@@ -284,6 +304,7 @@ class ConcatDataModule(BaseDataModule):
         return mean.values.item(), std.values.item()
 
     def setup(self, stage='test'):
+        print('setup (concatDataModule/data)')
         post_fn = self.post_fn()
         self.train_ds = XrConcatDataset([
             XrDataset(self.input_da.sel(domain), **self.xrds_kw, postpro_fn=post_fn,)
@@ -304,10 +325,12 @@ class ConcatDataModule(BaseDataModule):
 
 class RandValDataModule(BaseDataModule):
     def __init__(self, val_prop, *args, **kwargs):
+        print('init (RandValDataModule/data)')
         super().__init__(*args, **kwargs)
         self.val_prop = val_prop
 
     def setup(self, stage='test'):
+        print('setup (RandValDataModule/data)')
         post_fn = self.post_fn()
         train_ds = XrDataset(self.input_da.sel(self.domains['train']), **self.xrds_kw, postpro_fn=post_fn,)
         n_val = int(self.val_prop * len(train_ds))

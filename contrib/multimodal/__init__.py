@@ -14,27 +14,23 @@ MultiModalSSTTrainingItem = collections.namedtuple(
 
 
 def load_data_with_sst(obs_var='five_nadirs'):
-    inp = xr.open_dataset( "../sla-data-registry/CalData/cal_data_new_errs.nc")[obs_var]
-    gt = ( xr.open_dataset(
-            "../sla-data-registry/NATL60/NATL/ref_new/NATL60-CJM165_NATL_ssh_y2013.1y.nc"
-        ).ssh.isel(time=slice(0, -1))
-        .interp(lat=inp.lat, lon=inp.lon, method="nearest")
-    )
-    sst = (xr.open_dataset(
-            "../sla-data-registry/NATL60/NATL/ref_new/NATL60-CJM165_NATL_sst_y2013.1y.nc"
-        ).sst.isel(time=slice(0, -1))
-        .interp(lat=inp.lat, lon=inp.lon, method="nearest")
-    )
+    print('load_data_with_sst (multimodal)')
+    inp = (xr.open_dataset( "../data/Obs_patch50_FrMedCoast_log10_2019_2020_2021_.nc").kd490.sel(time=slice('2019-01-01','2021-06-30')))
+    gt = (xr.open_dataset("../data/GT_FrMedCoast_log10_2019_2020_2021_.nc").kd490.sel(time=slice('2019-01-01','2021-06-30')))
+    sst = (xr.open_dataset("../data/2019_to_2021_courant_FrMedCoast_log10.nc").uo.sel(time=slice('2019-01-01','2021-06-30')))
     ds =  (
-        xr.Dataset(dict(
+	xr.Dataset(dict(
             input=inp, tgt=(gt.dims, gt.values), sst=(sst.dims, sst.values)
         ), inp.coords).load()
         .transpose('time', 'lat', 'lon')
     )
+
     return ds.to_array()
+
 
 class MultiModalDataModule(src.data.BaseDataModule):
     def post_fn(self):
+        print('post_fn (MultiModalModule)')
 
         normalize_ssh = lambda item: (item - self.norm_stats()[0]) / self.norm_stats()[1]
         m_sst, s_sst = self.train_mean_std('sst')
@@ -52,6 +48,7 @@ class MultiModalDataModule(src.data.BaseDataModule):
 
 class MultiModalObsCost(nn.Module):
     def __init__(self, dim_in, dim_hidden):
+        print('init (MultiModalObsCost)')
         super().__init__()
         self.base_cost = src.models.BaseObsCost()
 
@@ -59,6 +56,7 @@ class MultiModalObsCost(nn.Module):
         self.conv_sst =  torch.nn.Conv2d(dim_in, dim_hidden, (3, 3), padding=1, bias=False)
 
     def forward(self, state, batch):
+        print('forward (MultiModalObsCost)')
         ssh_cost =  self.base_cost(state, batch)
         sst_cost =  torch.nn.functional.mse_loss(
             self.conv_ssh(state),
