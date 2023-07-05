@@ -1,8 +1,8 @@
 # @package _global_
 
 paths:
-    natl_gf_5nads: data/natl_gf_w_5nadirs.nc
-    enatl_gf_5nads: ../sla-data-registry/qdata/enatl_wo_tide.nc
+  GT: data/GT_FrMedCoast_log10_2019_2020_2021_.nc
+  patch: data/Obs_patch50_FrMedCoast_log10_2019_2020_2021_.nc 
 
 domain: ???
 
@@ -23,24 +23,25 @@ trainer:
     - _target_: pytorch_lightning.callbacks.LearningRateMonitor
     - _target_: pytorch_lightning.callbacks.ModelCheckpoint
       monitor: val_mse
-      save_top_k: 3
+      save_top_k: 10
       filename: '{val_mse:.5f}-{epoch:03d}'
 
 datamodule:
   _target_: src.data.BaseDataModule
   input_da: 
-    _target_: src.utils.load_altimetry_data
-    path: ${paths.natl_gf_5nads}
+    _target_: src.utils.load_kd490_data
+    path1: ${paths.GT}
+    path2: ${paths.patch}
   domains:
     train:
-      time: {_target_: builtins.slice, _args_: ['2013-02-24', '2013-09-30']}
+      time: {_target_: builtins.slice, _args_: ['2019-01-01', '2019-10-10']}
     val: 
-      time: {_target_: builtins.slice, _args_: ['2012-12-15', '2013-02-24']}
+      time: {_target_: builtins.slice, _args_: ['2020-02-04', '2020-03-31']}
     test: 
-      time: {_target_: builtins.slice,  _args_: ['2012-10-01', '2012-12-20']}
+      time: {_target_: builtins.slice,  _args_: ['2021-02-09', '2021-06-30']}
   xrds_kw:
     patch_dims: { time: 15, lat: 240, lon: 240}
-    strides: { time: 1, lat: 200, lon: 200}
+    strides: { time: 1, lat: 240, lon: 240}
     domain_limits: ${domain.train}
   dl_kw: {batch_size: 4, num_workers: 1}
   aug_kw:
@@ -58,7 +59,7 @@ model:
   rec_weight:
       _target_: src.utils.get_triang_time_wei
       patch_dims: ${datamodule.xrds_kw.patch_dims}
-      crop: {time: 0, lat: 20, lon: 20}
+      crop: {time: 0, lat: 0, lon: 0}
       offset: 1
   solver: 
     _target_: src.models.GradSolver
@@ -69,7 +70,6 @@ model:
       dim_in: ${datamodule.xrds_kw.patch_dims.time}
       dim_hidden: 32
       bilin_quad: False
-      downsamp: 2
     obs_cost: 
       _target_: src.models.BaseObsCost
     grad_mod: 
@@ -80,9 +80,8 @@ model:
   pre_metric_fn: 
         _target_: xarray.Dataset.sel
         _partial_: True
-        time: {_target_: builtins.slice, _args_: ["2012-10-22", "2012-12-02"]}
-        lat: ${domain.test.lat}
-        lon: ${domain.test.lon}
+        time: ${datamodule.domains.test.time}
+
 
 metrics:
   nrmse_scores: {_target_: src.utils.rmse_based_scores_from_ds, _partial_: True}
@@ -102,6 +101,12 @@ entrypoints:
     trainer: ${trainer}
     lit_mod: ${model}
     dm: ${datamodule}
+    test_fn:
+    _target_: src.utils.diagnostics
+    _partial_: true
+    test_domain:
+       time: {_target_: builtins.slice, _args_: ["2021-02-09", "2021-06-30"]}
+
 
 defaults:
   - /domain: gf

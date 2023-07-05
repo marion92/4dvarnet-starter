@@ -46,7 +46,7 @@ class XrDataset(torch.utils.data.Dataset):
         super().__init__()
         self.return_coords = False
         self.postpro_fn = postpro_fn
-        self.da = da.sel(**(domain_limits or {}))
+        self.da = da
         self.patch_dims = patch_dims
         self.strides = strides or {}
         da_dims = dict(zip(self.da.dims, self.da.shape))
@@ -242,7 +242,7 @@ class BaseDataModule(pl.LightningDataModule):
 
     def train_mean_std(self, variable='tgt'):
         print('train_mean_std (augmenteddataset/data)')
-        train_data = self.input_da.sel(self.xrds_kw.get('domain_limits', {})).sel(self.domains['train'])
+        train_data = self.input_da.sel(self.domains['train'])
         return train_data.sel(variable=variable).pipe(lambda da: (da.mean().values.item(), da.std().values.item()))
 
     def post_fn(self):

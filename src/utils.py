@@ -277,7 +277,7 @@ def diagnostics_from_ds(test_data, test_domain):
     print('diagnostics_from_ds (utils)')
     test_data = test_data.sel(test_domain)
     metrics = {
-        "RMSE (m)": test_data.pipe(lambda ds: (ds.rec_ssh - ds.ssh))
+        "RMSE (m)": test_data.pipe(lambda ds: (ds.out - ds.tgt))
         .pipe(lambda da: da**2)
         .mean()
         .pipe(np.sqrt)
@@ -285,15 +285,15 @@ def diagnostics_from_ds(test_data, test_domain):
         **dict(
             zip(
                 ["λx", "λt"],
-                test_data.pipe(lambda ds: psd_based_scores(ds.rec_ssh, ds.ssh)[1:]),
+                test_data.pipe(lambda ds: psd_based_scores(ds.out, ds.tgt)[1:]),
             )
         ),
-        **dict(
-            zip(
-                ["μ", "σ"],
-                test_data.pipe(lambda ds: rmse_based_scores(ds.rec_ssh, ds.ssh)[2:]),
-            )
-        ),
+        #**dict(
+        #    zip(
+        #        ["μ", "σ"],
+        #        test_data.pipe(lambda ds: rmse_based_scores(ds.out, ds.tgt)[2:]),
+        #    )
+        #),
     }
     return pd.Series(metrics, name="osse_metrics")
 
@@ -302,7 +302,7 @@ def test_osse(trainer, lit_mod, osse_dm, osse_test_domain, ckpt, diag_data_dir=N
     print('test_osse (utils)')
     lit_mod.norm_stats = osse_dm.norm_stats()
     trainer.test(lit_mod, datamodule=osse_dm, ckpt_path=ckpt)
-    osse_tdat = lit_mod.test_data[['rec_ssh', 'ssh']]
+    osse_tdat = lit_mod.test_data[['out', 'ssh']]
     osse_metrics = diagnostics_from_ds(
         osse_tdat, test_domain=osse_test_domain
     )
@@ -325,7 +325,7 @@ def ensemble_metrics(trainer, lit_mod, ckpt_list, dm, save_path):
     for i, ckpt in enumerate(ckpt_list):
         trainer.test(lit_mod, ckpt_path=ckpt, datamodule=dm)
         rmse = (
-            lit_mod.test_data.pipe(lambda ds: (ds.rec_ssh - ds.ssh))
+            lit_mod.test_data.pipe(lambda ds: (ds.out - ds.tgt))
             .pipe(lambda da: da**2)
             .mean()
             .pipe(np.sqrt)
@@ -338,10 +338,10 @@ def ensemble_metrics(trainer, lit_mod, ckpt_list, dm, save_path):
 
         if i == 0:
             test_data = lit_mod.test_data
-            test_data = test_data.rename(rec_ssh=f"rec_ssh_{i}")
+            test_data = test_data.rename(rec_ssh=f"out_{i}")
         else:
-            test_data = test_data.assign(**{f"rec_ssh_{i}": lit_mod.test_data.rec_ssh})
-        test_data[f"rec_ssh_{i}"] = test_data[f"rec_ssh_{i}"].assign_attrs(
+            test_data = test_data.assign(**{f"out_{i}": lit_mod.test_data.rec_ssh})
+        test_data[f"rec_ssh_{i}"] = test_data[f"out_{i}"].assign_attrs(
             ckpt=str(ckpt)
         )
 

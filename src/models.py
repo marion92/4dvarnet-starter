@@ -53,8 +53,6 @@ class Lit4dVarNet(pl.LightningModule):
     
     def step(self, batch, phase=""):
         print('step(Lit4dVarNet/models)')
-        if self.training and batch.tgt.isfinite().float().mean() < 0.9:
-            return None, None
 
         loss, out = self.base_step(batch, phase)
         grad_loss = self.weighted_mse( kfilts.sobel(out) - kfilts.sobel(batch.tgt), self.rec_weight)
@@ -102,7 +100,7 @@ class Lit4dVarNet(pl.LightningModule):
 
     def on_test_epoch_end(self):
         print('on_test_epoch_end (Lit4dVarNet/models)')
-        rec_da = self.trainer.test_dataloaders.dataset.reconstruct(
+        rec_da = self.trainer.test_dataloaders[0].dataset.reconstruct(
             self.test_data, self.rec_weight.cpu().numpy()
         )
 
