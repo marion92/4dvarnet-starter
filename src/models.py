@@ -153,7 +153,6 @@ class GradSolver(nn.Module):
             1 / (step + 1) * gmod + 
             self.lr_grad * (step + 1) / self.n_step * grad
         )
-            
         return state - state_update
 
     def forward(self, batch):
