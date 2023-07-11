@@ -125,7 +125,7 @@ class Lit4dVarNet(pl.LightningModule):
 
 
 class GradSolver(nn.Module):
-    def __init__(self, prior_cost, obs_cost, grad_mod, n_step, lr_grad=0.1, **kwargs):
+    def __init__(self, prior_cost, obs_cost, grad_mod, n_step, lr_grad=0.1, post_proj=False,**kwargs):
         print('init (GradSolver/models)')
         super().__init__()
         self.prior_cost = prior_cost
@@ -134,7 +134,7 @@ class GradSolver(nn.Module):
 
         self.n_step = n_step
         self.lr_grad = lr_grad
-
+        self.post_proj = post_proj
         self._grad_norm = None
 
     def init_state(self, batch, x_init=None):
@@ -167,7 +167,8 @@ class GradSolver(nn.Module):
                     state = state.detach().requires_grad_(True)
 
             if not self.training:
-                state = self.prior_cost.forward_ae(state)
+                if self.post_proj:
+                    state = self.prior_cost.forward_ae(state)
         return state
 
 
