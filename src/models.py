@@ -100,7 +100,7 @@ class Lit4dVarNet(pl.LightningModule):
 
     def on_test_epoch_end(self):
         print('on_test_epoch_end (Lit4dVarNet/models)')
-        rec_da = self.trainer.test_dataloaders[0].dataset.reconstruct(
+        rec_da = self.trainer.test_dataloaders.dataset.reconstruct(
             self.test_data, self.rec_weight.cpu().numpy()
         )
 
