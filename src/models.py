@@ -131,7 +131,8 @@ class GradSolver(nn.Module):
         self.prior_cost = prior_cost
         self.obs_cost = obs_cost
         self.grad_mod = grad_mod
-
+        self.alphaReg = torch.nn.Parameter(torch.Tensor([1.]))
+        self.alphaObs = torch.nn.Parameter(torch.Tensor([1.]))
         self.n_step = n_step
         self.lr_grad = lr_grad
         self.post_proj = post_proj
@@ -146,7 +147,7 @@ class GradSolver(nn.Module):
 
     def solver_step(self, state, batch, step):
         print('solver_step (GradSolver/models)')
-        var_cost = self.prior_cost(state) + self.obs_cost(state, batch)
+        var_cost = self.alphaReg**2*self.prior_cost(state) + self.alphaObs**2*self.obs_cost(state, batch)
         grad = torch.autograd.grad(var_cost, state, create_graph=True)[0]
         gmod = self.grad_mod(grad)
         state_update = (

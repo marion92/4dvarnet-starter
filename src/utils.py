@@ -41,6 +41,21 @@ def half_lr_adam(lit_mod, lr):
     )
 
 
+def cosanneal_lr_adam_VarCost(lit_mod, lr, T_max=100, weight_decay=0.):
+    opt = torch.optim.Adam(
+        [
+            {"params": lit_mod.solver.grad_mod.parameters(), "lr": lr},
+            {"params": lit_mod.solver.obs_cost.parameters(), "lr": lr},
+            {"params": lit_mod.solver.prior_cost.parameters(), "lr": lr / 2},
+            {"params": lit_mod.solver.alphaReg, "lr": lr / 2},
+            {"params": lit_mod.solver.alphaObs, "lr": lr / 2},
+        ], weight_decay=weight_decay
+    )
+    return {
+        "optimizer": opt,
+        "lr_scheduler": torch.optim.lr_scheduler.CosineAnnealingLR(opt, T_max=T_max),
+    }
+    
 def cosanneal_lr_adam(lit_mod, lr, T_max=100, weight_decay=0.):
     print('cosanneal_lr_adam (utils)')
     opt = torch.optim.Adam(
@@ -172,7 +187,21 @@ def load_altimetry_data(path, obs_from_tgt=False):
         .to_array()
     )
 
-
+def load_kd490_data (path1,path2):
+    GT=xr.open_dataset(path1)
+    patch=xr.open_dataset(path2)
+    GT = GT.rename({'kd490': 'GT'})
+    merg=xr.merge([GT,patch])
+    return (
+        merg
+        .load()
+        .assign(
+            input=lambda ds: ds.kd490,
+            tgt=lambda ds: ds.GT,
+        )[[*src.data.TrainingItem._fields]]
+        .transpose("time", "lat", "lon")
+        .to_array()
+    )
 def load_full_natl_data(
         path_obs="../sla-data-registry/CalData/cal_data_new_errs.nc",
         path_gt="../sla-data-registry/NATL60/NATL/ref_new/NATL60-CJM165_NATL_ssh_y2013.1y.nc",

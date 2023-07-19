@@ -1,10 +1,9 @@
 # @package _global_
 
 paths:
-  GT: data/GT_FrMedCoast_log10_2019_2020_2021_.nc
-  patch: data/Obs_patch50_FrMedCoast_log10_2019_2020_2021_.nc 
+  GT: /DATASET/turbidity_kd/threshold/GT_FrMedCoast_log10_with_QIdx_seuil2.nc
+  patch: /DATASET/turbidity_kd/threshold/GT_FrMedCoast_log10_with_QIdx_seuil2.nc
 
-domain: ???
 
 trainer:
   _target_: pytorch_lightning.Trainer
@@ -34,15 +33,15 @@ datamodule:
     path2: ${paths.patch}
   domains:
     train:
-      time: {_target_: builtins.slice, _args_: ['2019-01-01', '2019-10-10']}
+      time: {_target_: builtins.slice, _args_: ['2021-02-09', '2021-06-30']}
     val: 
-      time: {_target_: builtins.slice, _args_: ['2020-02-04', '2020-03-31']}
+      time: {_target_: builtins.slice, _args_: ['2021-02-09', '2021-06-30']}
     test: 
       time: {_target_: builtins.slice,  _args_: ['2021-02-09', '2021-06-30']}
   xrds_kw:
     patch_dims: { time: 15, lat: 240, lon: 240}
     strides: { time: 1, lat: 240, lon: 240}
-    domain_limits: ${domain.train}
+    #domain_limits: ${domain.train}
   dl_kw: {batch_size: 4, num_workers: 1}
   aug_kw:
     aug_factor: 2
@@ -52,7 +51,7 @@ model:
   _target_: src.models.Lit4dVarNet
   persist_rw: False
   opt_fn:
-    _target_: src.utils.cosanneal_lr_adam
+    _target_: src.utils.cosanneal_lr_adam_VarCost
     _partial_: true
     lr: 1e-3
     T_max: ${trainer.max_epochs}
@@ -76,39 +75,13 @@ model:
       _target_: src.models.ConvLstmGradModel
       dim_in: ${datamodule.xrds_kw.patch_dims.time}
       dim_hidden: 48
-  test_metrics: ${metrics.test_metrics}
-  pre_metric_fn: 
-        _target_: xarray.Dataset.sel
-        _partial_: True
-        time: ${datamodule.domains.test.time}
-
-
-metrics:
-  nrmse_scores: {_target_: src.utils.rmse_based_scores_from_ds, _partial_: True}
-  psd_scores: {_target_: src.utils.psd_based_scores_from_ds, _partial_: True}
-  get0: {_target_: operator.itemgetter, _args_: [0]}
-  get1: {_target_: operator.itemgetter, _args_: [1]}
-  test_metrics:
-    'mu': {_target_: src.utils.pipe, _partial_: true, fns: ['${metrics.nrmse_scores}', '${metrics.get0}']}
-    'sig': {_target_: src.utils.pipe, _partial_: true, fns: ['${metrics.nrmse_scores}', '${metrics.get1}']}
-    'lx': {_target_: src.utils.pipe, _partial_: true, fns: ['${metrics.psd_scores}', '${metrics.get0}']}
-    'lt': {_target_: src.utils.pipe, _partial_: true, fns: ['${metrics.psd_scores}', '${metrics.get1}']}
 
 entrypoints:
   - _target_: pytorch_lightning.seed_everything
     seed: 333
-  - _target_: src.train.multi_dm_training
+  - _target_: src.train.base_training
     trainer: ${trainer}
     lit_mod: ${model}
     dm: ${datamodule}
-    test_fn:
-      _target_: src.utils.diagnostics
-      _partial_: true
-      test_domain:
-        time: {_target_: builtins.slice, _args_: ["2021-02-09", "2021-06-30"]}
 
-
-defaults:
-  - /domain: gf
-  - _self_
 
