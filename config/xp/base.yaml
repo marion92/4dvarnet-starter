@@ -1,8 +1,8 @@
 # @package _global_
 
 paths:
-  GT: /DATASET/turbidity_kd/threshold/GT_FrMedCoast_log10_with_QIdx_seuil2.nc
-  patch: /DATASET/turbidity_kd/threshold/GT_FrMedCoast_log10_with_QIdx_seuil2.nc
+  GT: /DATASET/turbidity_kd/GT_FrMedCoast_log10_2019_2020_2021_.nc
+  patch: /DATASET/turbidity_kd/Obs_patch50_FrMedCoast_log10_2019_2020_2021_.nc
 
 
 trainer:
