@@ -41,7 +41,7 @@ datamodule:
   xrds_kw:
     patch_dims: { time: 15, lat: 240, lon: 240}
     strides: { time: 1, lat: 240, lon: 240}
-    domain_limits: ${domain.train}
+    #domain_limits: ${domain.train}
   dl_kw: {batch_size: 4, num_workers: 1}
   aug_kw:
     aug_factor: 2
@@ -106,19 +106,6 @@ entrypoints:
       test_domain:
         time: {_target_: builtins.slice, _args_: ["2021-02-09", "2021-06-30"]}
 
-
-entrypoints:
-  - _target_: pytorch_lightning.seed_everything
-    seed: 333
-  - _target_: src.train.multi_dm_training
-    trainer: ${trainer}
-    lit_mod: ${model}
-    dm: ${datamodule}
-    test_fn:
-      _target_: src.utils.diagnostics
-      _partial_: true
-      test_domain:
-        time: {_target_: builtins.slice, _args_: ["2021-02-09", "2021-06-30"]}
 
 
 

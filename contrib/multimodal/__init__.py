@@ -14,7 +14,7 @@ MultiModalSSTTrainingItem = collections.namedtuple(
 
 
 def load_data_with_courant(obs_var='five_nadirs'):
-    print('load_data_with_sst (multimodal)')
+    print('load_data_with_courant (multimodal)')
     inp = (xr.open_dataset( "/DATASET/turbidity_kd/Obs_patch50_FrMedCoast_log10_2019_2020_2021_.nc").kd490.sel(time=slice('2019-01-01','2021-06-30')))
     gt = (xr.open_dataset("/DATASET/turbidity_kd/GT_FrMedCoast_log10_2019_2020_2021_.nc").kd490.sel(time=slice('2019-01-01','2021-06-30')))
     sst = (xr.open_dataset("/DATASET/turbidity_kd/forcages/2019_to_2021_courant_FrMedCoast_log10.nc").uo.sel(time=slice('2019-01-01','2021-06-30')))
@@ -42,10 +42,12 @@ def load_data_with_sst(obs_var='five_nadirs'):
     return ds.to_array()
 
 def load_data_with_wave(obs_var='five_nadirs'):
-    print('load_data_with_sst (multimodal)')
+    print('load_data_with_wave (multimodal)')
     inp = (xr.open_dataset( "../data/Obs_patch50_FrMedCoast_log10_2019_2020_2021_.nc").kd490.sel(time=slice('2019-01-01','2021-06-30')))
     gt = (xr.open_dataset("../data/GT_FrMedCoast_log10_2019_2020_2021_.nc").kd490.sel(time=slice('2019-01-01','2021-06-30')))
-    sst = (xr.open_dataset("../data/2019_to_2021_courant_FrMedCoast_log10.nc").uo.sel(time=slice('2019-01-01','2021-06-30')))
+    sst = (xr.open_dataset("../data/2019_to_2021_wave_FrMedCoast_log10.nc").VHM0.sel(time=slice('2019-01-01','2021-06-30')))
+    sst = sst.rename({'latitude' : 'lat'})
+    sst = sst.rename({'longitude' : 'lon'})
     ds =  (
 	xr.Dataset(dict(
             input=inp, tgt=(gt.dims, gt.values), sst=(sst.dims, sst.values)
@@ -56,10 +58,10 @@ def load_data_with_wave(obs_var='five_nadirs'):
     return ds.to_array()
 
 def load_data_with_wind(obs_var='five_nadirs'):
-    print('load_data_with_sst (multimodal)')
+    print('load_data_with_wind (multimodal)')
     inp = (xr.open_dataset( "../data/Obs_patch50_FrMedCoast_log10_2019_2020_2021_.nc").kd490.sel(time=slice('2019-01-01','2021-06-30')))
     gt = (xr.open_dataset("../data/GT_FrMedCoast_log10_2019_2020_2021_.nc").kd490.sel(time=slice('2019-01-01','2021-06-30')))
-    sst = (xr.open_dataset("../data/2019_to_2021_courant_FrMedCoast_log10.nc").uo.sel(time=slice('2019-01-01','2021-06-30')))
+    sst = (xr.open_dataset("../data/2019_2020_2021_era5_wind_land_mask.nc").wind.sel(time=slice('2019-01-01','2021-06-30')))
     ds =  (
 	xr.Dataset(dict(
             input=inp, tgt=(gt.dims, gt.values), sst=(sst.dims, sst.values)
@@ -68,6 +70,7 @@ def load_data_with_wind(obs_var='five_nadirs'):
     )
 
     return ds.to_array()
+
 
 class MultiModalDataModule(src.data.BaseDataModule):
     def post_fn(self):
